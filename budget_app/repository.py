@@ -23,3 +23,7 @@ class TransactionRepository:
             data = asdict(transaction)
             line = json.dumps(data, ensure_ascii=False)
             f.write(line + "\n")
+
+    def next_id(self) -> str:
+        count = sum(1 for _ in self.iter_all())
+        return f"TX-{count + 1:06d}"
