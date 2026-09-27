@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 from .models import Transaction
 from .repository import TransactionRepository
+from itertools import islice
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="budget_app")
@@ -13,6 +14,9 @@ def build_parser() -> argparse.ArgumentParser:
     add_parser.add_argument("--category", type=str, required=True)
     add_parser.add_argument("--amount", type=int, required=True)
     add_parser.add_argument("--memo", type=str, default="")
+
+    list_parser = subparsers.add_parser("list")
+    list_parser.add_argument("--limit", type=int, default=10)
 
     return parser
 
@@ -32,4 +36,9 @@ def main():
         )
         repo.add(transaction)
         print(f"거래가 추가되었습니다: {new_id}")
+
+    elif args.command == "list":
+        repo = TransactionRepository(Path("data/transactions.jsonl"))
+        for transaction in islice(repo.iter_all(), args.limit):
+            print(transaction)
 
