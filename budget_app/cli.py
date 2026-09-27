@@ -65,6 +65,8 @@ def prompt_amount() -> int:
 
 
 def prompt_category(cat_repo: CategoryRepository) -> str:
+    categories = list(cat_repo.iter_all())
+    print(f"등록된 카테고리: {', '.join(categories)}")
     while True:
         text = input("카테고리: ")
         if cat_repo.exists(text):
@@ -115,7 +117,9 @@ def main():
 
     elif args.command == "list":
         repo = TransactionRepository(Path("data/transactions.jsonl"))
-        for transaction in islice(repo.iter_all(), args.limit):
+        transactions = list(repo.iter_all())
+        transactions.reverse()
+        for transaction in islice(transactions, args.limit):
             print(transaction)
 
     elif args.command == "category":
