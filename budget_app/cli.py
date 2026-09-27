@@ -5,6 +5,7 @@ from .models import Transaction
 from .repository import TransactionRepository, CategoryRepository
 from itertools import islice
 from datetime import datetime
+from .service import TransactionService
 
 
 DEFAULT_CATEGORIES = ["food", "transport", "rent", "salary", "etc"]
@@ -29,6 +30,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     delete_parser = subparsers.add_parser("delete")
     delete_parser.add_argument("--id", type=str, required=True)
+
+    search_parser = subparsers.add_parser("search")
+    search_parser.add_argument("--from", dest="date_from", type=str, default=None)
+    search_parser.add_argument("--to", dest="date_to", type=str, default=None)
+    search_parser.add_argument("--category", type=str, default=None)
+    search_parser.add_argument("--type", type=str, default=None)
+    search_parser.add_argument("--q", type=str, default=None)
+    search_parser.add_argument("--tag", type=str, default=None)
 
     return parser
 
@@ -148,6 +157,21 @@ def main():
         else:
             print(f"[오류] 해당 id를 찾을 수 없습니다: {args.id}")
             sys.exit(1)
+
+    elif args.command == "search":
+        repo = TransactionRepository(Path("data/transactions.jsonl"))
+        service = TransactionService(repo)
+        results = list(service.search(
+            date_from=args.date_from,
+            date_to=args.date_to,
+            category=args.category,
+            type_=args.type,
+            q=args.q,
+            tag=args.tag,
+        ))
+        results.reverse()   # 최신순 (list와 동일한 이유)
+        for transaction in results:
+            print(transaction)
 
     else:
         parser.print_help()
