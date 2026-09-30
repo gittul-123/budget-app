@@ -30,3 +30,29 @@ class TransactionService:
                 continue
 
             yield transaction
+    
+    def summary(self, month: str) -> dict:
+        total_income = 0
+        total_expense = 0
+        category_totals = {}
+        has_data = False
+
+        for transaction in self.repo.iter_all():
+            if transaction.date[:7] != month:
+                continue
+
+            has_data = True
+
+            if transaction.type == "income":
+                total_income += transaction.amount
+            else:
+                total_expense += transaction.amount
+                category_totals[transaction.category] = category_totals.get(transaction.category, 0) + transaction.amount
+            
+        return {
+            "has_data" : has_data,
+            "total_income": total_income,
+            "total_expense": total_expense,
+            "balance": total_income - total_expense,
+            "category_totals": category_totals,           
+        }

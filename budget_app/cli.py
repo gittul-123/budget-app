@@ -48,6 +48,10 @@ def build_parser() -> argparse.ArgumentParser:
     update_parser.add_argument("--memo", type=str, default=None)
     update_parser.add_argument("--tags", type=str, default=None)
 
+    summary_parser = subparsers.add_parser("summary")
+    summary_parser.add_argument("--month", type=str, required=True)
+    summary_parser.add_argument("--top", type=int, default=3)
+
     return parser
 
 
@@ -224,6 +228,26 @@ def main():
         else:
             print(f"[오류] 해당 id를 찾을 수 없습니다: {args.id}")
             sys.exit(1)
+
+    elif args.command == "summary":
+        repo = TransactionRepository(Path("data/transactions.jsonl"))
+        service = TransactionService(repo)
+        result = service.summary(args.month)
+
+        if not result["has_data"]:
+            print(f"[{args.month}] 데이터 없음")
+
+        else:
+            print(f"총 수입: {result['total_income']}원")
+            print(f"총 지출: {result['total_expense']}원")
+            print(f"잔액: {result['balance']}원")
+
+            items = list(result["category_totals"].items())
+            top_items = sorted(items, key=lambda item: item[1], reverse=True)[:args.top]
+
+            print(f"지출 TOP {args.top}")
+            for i, (category, amount) in enumerate(top_items, start=1):
+                print(f"{i}) {category} {amount}원")
 
 
     else:
