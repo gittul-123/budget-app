@@ -2,7 +2,7 @@ import argparse
 import sys
 from pathlib import Path
 from .models import Transaction
-from .repository import TransactionRepository, CategoryRepository
+from .repository import TransactionRepository, CategoryRepository, BudgetRepository
 from itertools import islice
 from datetime import datetime
 from .service import TransactionService
@@ -51,6 +51,13 @@ def build_parser() -> argparse.ArgumentParser:
     summary_parser = subparsers.add_parser("summary")
     summary_parser.add_argument("--month", type=str, required=True)
     summary_parser.add_argument("--top", type=int, default=3)
+
+    budget_parser = subparsers.add_parser("budget")
+    budget_subparsers = budget_parser.add_subparsers(dest="budget_command")
+
+    budget_set = budget_subparsers.add_parser("set")
+    budget_set.add_argument("--month", type=str, required=True)
+    budget_set.add_argument("--amount", type=int, required=True)
 
     return parser
 
@@ -182,7 +189,7 @@ def main():
             q=args.q,
             tag=args.tag,
         ))
-        results.reverse()   # 최신순 (list와 동일한 이유)
+        results.reverse()
         for transaction in results:
             print(transaction)
 
@@ -195,11 +202,11 @@ def main():
             except ValueError:
                 print(f"[오류] 날짜 형식이 올바르지 않습니다: {args.date}")
                 sys.exit(1)
-        
+
         if args.type is not None and args.type not in ["income", "expense"]:
             print(f"[오류] type은 income 또는 expense만 가능합니다: {args.type}")
             sys.exit(1)
-        
+
         if args.category is not None and not cat_repo.exists(args.category):
             print(f"[오류] 등록되지 않은 카테고리입니다: {args.category}")
             sys.exit(1)
@@ -224,7 +231,7 @@ def main():
 
         if found:
             print(f"[수정 완료] id={args.id}")
-        
+
         else:
             print(f"[오류] 해당 id를 찾을 수 없습니다: {args.id}")
             sys.exit(1)
@@ -249,6 +256,22 @@ def main():
             for i, (category, amount) in enumerate(top_items, start=1):
                 print(f"{i}) {category} {amount}원")
 
+            budget_repo = BudgetRepository(Path("data/budgets.jsonl"))
+            budget_amount = budget_repo.get(args.month)
+
+            if budget_amount is not None:
+                usage_rate = (result['total_expense'] / budget_amount) * 100
+                print(f"예산: {budget_amount}원 (사용률 {usage_rate:.1f}%)")
+                if result["total_expense"] > budget_amount:
+                    print("[경고] 예산을 초과했습니다!")
+
+    elif args.command == "budget":
+        budget_repo = BudgetRepository(Path("data/budgets.jsonl"))
+        if args.budget_command == "set":
+            budget_repo.set(args.month, args.amount)
+            print(f"[저장 완료] {args.month} 예산 {args.amount}원")
+        else:
+            parser.print_help()
 
     else:
         parser.print_help()

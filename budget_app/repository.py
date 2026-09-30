@@ -36,7 +36,7 @@ class TransactionRepository:
                 line = json.dumps(data, ensure_ascii=False)
                 f.write(line + "\n")
 
-    def delete(self, id:str) -> bool:
+    def delete(self, id: str) -> bool:
         remaining = []
         found = False
         for transaction in self.iter_all():
@@ -47,8 +47,8 @@ class TransactionRepository:
 
         self.write_all(remaining)
         return found
-    
-    def update(self, id:str, **changes) -> bool:
+
+    def update(self, id: str, **changes) -> bool:
         changes = {k: v for k, v in changes.items() if v is not None}
 
         updated = []
@@ -58,9 +58,10 @@ class TransactionRepository:
                 found = True
                 transaction = replace(transaction, **changes)
             updated.append(transaction)
-        
+
         self.write_all(updated)
         return found
+
 
 class CategoryRepository:
     def __init__(self, file_path: Path):
@@ -91,3 +92,31 @@ class CategoryRepository:
             return
         for name in defaults:
             self.add(name)
+
+
+class BudgetRepository:
+    def __init__(self, file_path: Path):
+        self.file_path = file_path
+
+    def iter_all(self) -> Iterator[dict]:
+        if not self.file_path.exists():
+            return
+
+        with open(self.file_path, "r", encoding="utf-8") as f:
+            for line in f:
+                data = json.loads(line)
+                yield data
+
+    def get(self, month: str) -> int | None:
+        for entry in self.iter_all():
+            if entry["month"] == month:
+                return entry["amount"]
+        return None
+
+    def set(self, month: str, amount: int) -> None:
+        remaining = [entry for entry in self.iter_all() if entry["month"] != month]
+        remaining.append({"month": month, "amount": amount})
+
+        with open(self.file_path, "w", encoding="utf-8") as f:
+            for entry in remaining:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
