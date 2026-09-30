@@ -39,6 +39,15 @@ def build_parser() -> argparse.ArgumentParser:
     search_parser.add_argument("--q", type=str, default=None)
     search_parser.add_argument("--tag", type=str, default=None)
 
+    update_parser = subparsers.add_parser("update")
+    update_parser.add_argument("--id", type=str, required=True)
+    update_parser.add_argument("--date", type=str, default=None)
+    update_parser.add_argument("--type", type=str, default=None)
+    update_parser.add_argument("--category", type=str, default=None)
+    update_parser.add_argument("--amount", type=int, default=None)
+    update_parser.add_argument("--memo", type=str, default=None)
+    update_parser.add_argument("--tags", type=str, default=None)
+
     return parser
 
 
@@ -172,6 +181,50 @@ def main():
         results.reverse()   # 최신순 (list와 동일한 이유)
         for transaction in results:
             print(transaction)
+
+    elif args.command == "update":
+        repo = TransactionRepository(Path("data/transactions.jsonl"))
+
+        if args.date is not None:
+            try:
+                datetime.strptime(args.date, '%Y-%m-%d')
+            except ValueError:
+                print(f"[오류] 날짜 형식이 올바르지 않습니다: {args.date}")
+                sys.exit(1)
+        
+        if args.type is not None and args.type not in ["income", "expense"]:
+            print(f"[오류] type은 income 또는 expense만 가능합니다: {args.type}")
+            sys.exit(1)
+        
+        if args.category is not None and not cat_repo.exists(args.category):
+            print(f"[오류] 등록되지 않은 카테고리입니다: {args.category}")
+            sys.exit(1)
+
+        if args.amount is not None and args.amount <= 0:
+            print(f"[오류] 금액은 양수여야 합니다: {args.amount}")
+            sys.exit(1)
+
+        tags = None
+        if args.tags is not None:
+            tags = [tag.strip() for tag in args.tags.split(",")]
+
+        found = repo.update(
+            args.id,
+            date=args.date,
+            type=args.type,
+            category=args.category,
+            amount=args.amount,
+            memo=args.memo,
+            tags=tags,
+        )
+
+        if found:
+            print(f"[수정 완료] id={args.id}")
+        
+        else:
+            print(f"[오류] 해당 id를 찾을 수 없습니다: {args.id}")
+            sys.exit(1)
+
 
     else:
         parser.print_help()

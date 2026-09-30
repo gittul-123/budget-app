@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from typing import Iterator
 from .models import Transaction
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 
 class TransactionRepository:
@@ -46,6 +46,20 @@ class TransactionRepository:
             remaining.append(transaction)
 
         self.write_all(remaining)
+        return found
+    
+    def update(self, id:str, **changes) -> bool:
+        changes = {k: v for k, v in changes.items() if v is not None}
+
+        updated = []
+        found = False
+        for transaction in self.iter_all():
+            if transaction.id == id:
+                found = True
+                transaction = replace(transaction, **changes)
+            updated.append(transaction)
+        
+        self.write_all(updated)
         return found
 
 class CategoryRepository:
