@@ -59,6 +59,12 @@ def build_parser() -> argparse.ArgumentParser:
     budget_set.add_argument("--month", type=str, required=True)
     budget_set.add_argument("--amount", type=int, required=True)
 
+    export_parser = subparsers.add_parser("export")
+    export_parser.add_argument("--out", type=str, required=True)
+
+    import_parser = subparsers.add_parser("import")
+    import_parser.add_argument("--in", dest="csv_in", type=str, required=True)
+
     return parser
 
 
@@ -168,7 +174,7 @@ def main():
             if in_use:
                 print(f"[오류] '{args.name}' 카테고리를 사용 중인 거래가 있어 삭제할 수 없습니다.")
                 sys.exit(1)
-            
+
             found = cat_repo.remove(args.name)
             if found:
                 print(f"[삭제 완료] category={args.name}")
@@ -284,6 +290,18 @@ def main():
             print(f"[저장 완료] {args.month} 예산 {args.amount}원")
         else:
             parser.print_help()
+
+    elif args.command == "export":
+        repo = TransactionRepository(Path("data/transactions.jsonl"))
+        service = TransactionService(repo)
+        count = service.export_csv(args.out)
+        print(f"[내보내기 완료] {count}건을 {args.out}에 저장했습니다.")
+
+    elif args.command == "import":
+        repo = TransactionRepository(Path("data/transactions.jsonl"))
+        service = TransactionService(repo)
+        result = service.import_csv(args.csv_in, cat_repo)
+        print(f"[가져오기 완료] 성공 {result['success']}건, 실패 {result['failed']}건")
 
     else:
         parser.print_help()
