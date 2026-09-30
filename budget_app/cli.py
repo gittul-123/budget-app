@@ -162,7 +162,19 @@ def main():
                 print(f"- {name}")
 
         elif args.category_command == "remove":
-            print("아직 구현 안 됨")
+            repo = TransactionRepository(Path("data/transactions.jsonl"))
+            in_use = any(t.category == args.name for t in repo.iter_all())
+
+            if in_use:
+                print(f"[오류] '{args.name}' 카테고리를 사용 중인 거래가 있어 삭제할 수 없습니다.")
+                sys.exit(1)
+            
+            found = cat_repo.remove(args.name)
+            if found:
+                print(f"[삭제 완료] category={args.name}")
+            else:
+                print(f"[오류] 등록되지 않은 카테고리입니다: {args.name}")
+                sys.exit(1)
 
         else:
             parser.print_help()

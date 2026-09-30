@@ -86,6 +86,21 @@ class CategoryRepository:
     def exists(self, name: str) -> bool:
         return name in self.iter_all()
 
+    def remove(self, name: str) -> bool:
+        remaining = []
+        found = False
+        for existing in self.iter_all():
+            if existing == name:
+                found = True
+                continue
+            remaining.append(existing)
+
+        with open(self.file_path, "w", encoding="utf-8") as f:
+            for n in remaining:
+                f.write(json.dumps({"name": n}, ensure_ascii=False) + "\n")
+        
+        return found
+    
     def ensure_default(self, defaults: list[str]) -> None:
         has_any = any(True for _ in self.iter_all())
         if has_any:
