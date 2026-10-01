@@ -310,6 +310,9 @@ def main():
     elif args.command == "budget":
         budget_repo = BudgetRepository(datadir / "budgets.jsonl")
         if args.budget_command == "set":
+            if args.amount <= 0:
+                print(f"[오류] 예산은 양수여야 합니다: {args.amount}")
+                sys.exit(1)
             budget_repo.set(args.month, args.amount)
             print(f"[저장 완료] {args.month} 예산 {args.amount}원")
         else:
