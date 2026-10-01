@@ -6,6 +6,7 @@ from .repository import TransactionRepository, CategoryRepository, BudgetReposit
 from itertools import islice
 from datetime import datetime
 from .service import TransactionService
+import functools
 
 
 DEFAULT_CATEGORIES = ["food", "transport", "rent", "salary", "etc"]
@@ -120,7 +121,17 @@ def prompt_tags() -> list[str]:
         return []
     return [tag.strip() for tag in text.split(",")]
 
+def handle_errors(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            print(f"[오류] 예상치 못한 문제가 발생했습니다: {e}")
+            sys.exit(1)
+    return wrapper
 
+@handle_errors
 def main():
     parser = build_parser()
     args = parser.parse_args()
@@ -305,3 +316,4 @@ def main():
 
     else:
         parser.print_help()
+
