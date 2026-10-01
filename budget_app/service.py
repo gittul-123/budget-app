@@ -60,8 +60,8 @@ class TransactionService:
             "category_totals": category_totals,
         }
 
-    def export_csv(self, path) -> int:
-        transactions = list(self.repo.iter_all())
+    def export_csv(self, path, date_from: Optional[str] = None, date_to: Optional[str] = None) -> int:
+        transactions = list(self.search(date_from=date_from, date_to=date_to))
         with open(path, "w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=["date", "type", "category", "amount", "memo", "tags"])
             writer.writeheader()

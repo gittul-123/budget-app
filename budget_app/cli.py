@@ -7,6 +7,7 @@ from itertools import islice
 from datetime import datetime
 from .service import TransactionService
 import functools
+import calendar
 
 
 DEFAULT_CATEGORIES = ["food", "transport", "rent", "salary", "etc"]
@@ -14,6 +15,7 @@ DEFAULT_CATEGORIES = ["food", "transport", "rent", "salary", "etc"]
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="budget_app")
+    parser.add_argument("--datadir", type=str, default="./data")
     subparsers = parser.add_subparsers(dest="command")
 
     add_parser = subparsers.add_parser("add")
@@ -62,9 +64,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     export_parser = subparsers.add_parser("export")
     export_parser.add_argument("--out", type=str, required=True)
+    export_parser.add_argument("--month", type=str, default=None)
+    export_parser.add_argument("--from", dest="date_from", type=str, default=None)
+    export_parser.add_argument("--to", dest="date_to", type=str, default=None)
 
     import_parser = subparsers.add_parser("import")
-    import_parser.add_argument("--in", dest="csv_in", type=str, required=True)
+    import_parser.add_argument("--from", dest="csv_in", type=str, required=True)
 
     return parser
 
@@ -121,6 +126,7 @@ def prompt_tags() -> list[str]:
         return []
     return [tag.strip() for tag in text.split(",")]
 
+
 def handle_errors(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -131,16 +137,20 @@ def handle_errors(func):
             sys.exit(1)
     return wrapper
 
+
 @handle_errors
 def main():
     parser = build_parser()
     args = parser.parse_args()
 
-    cat_repo = CategoryRepository(Path("data/categories.jsonl"))
+    datadir = Path(args.datadir)
+    datadir.mkdir(parents=True, exist_ok=True)
+
+    cat_repo = CategoryRepository(datadir / "categories.jsonl")
     cat_repo.ensure_default(DEFAULT_CATEGORIES)
 
     if args.command == "add":
-        repo = TransactionRepository(Path("data/transactions.jsonl"))
+        repo = TransactionRepository(datadir / "transactions.jsonl")
         date = prompt_date()
         type_ = prompt_type()
         category = prompt_category(cat_repo)
@@ -162,7 +172,7 @@ def main():
         print(f"[저장 완료] id={new_id}")
 
     elif args.command == "list":
-        repo = TransactionRepository(Path("data/transactions.jsonl"))
+        repo = TransactionRepository(datadir / "transactions.jsonl")
         transactions = list(repo.iter_all())
         transactions.reverse()
         for transaction in islice(transactions, args.limit):
@@ -171,6 +181,9 @@ def main():
     elif args.command == "category":
         if args.category_command == "add":
             name = input("카테고리명: ")
+            if cat_repo.exists(name):
+                print(f"[오류] 이미 등록된 카테고리입니다: {name}")
+                sys.exit(1)
             cat_repo.add(name)
             print(f"[저장 완료] category={name}")
 
@@ -179,7 +192,7 @@ def main():
                 print(f"- {name}")
 
         elif args.category_command == "remove":
-            repo = TransactionRepository(Path("data/transactions.jsonl"))
+            repo = TransactionRepository(datadir / "transactions.jsonl")
             in_use = any(t.category == args.name for t in repo.iter_all())
 
             if in_use:
@@ -197,7 +210,7 @@ def main():
             parser.print_help()
 
     elif args.command == "delete":
-        repo = TransactionRepository(Path("data/transactions.jsonl"))
+        repo = TransactionRepository(datadir / "transactions.jsonl")
         found = repo.delete(args.id)
 
         if found:
@@ -208,7 +221,7 @@ def main():
             sys.exit(1)
 
     elif args.command == "search":
-        repo = TransactionRepository(Path("data/transactions.jsonl"))
+        repo = TransactionRepository(datadir / "transactions.jsonl")
         service = TransactionService(repo)
         results = list(service.search(
             date_from=args.date_from,
@@ -223,7 +236,7 @@ def main():
             print(transaction)
 
     elif args.command == "update":
-        repo = TransactionRepository(Path("data/transactions.jsonl"))
+        repo = TransactionRepository(datadir / "transactions.jsonl")
 
         if args.date is not None:
             try:
@@ -266,7 +279,7 @@ def main():
             sys.exit(1)
 
     elif args.command == "summary":
-        repo = TransactionRepository(Path("data/transactions.jsonl"))
+        repo = TransactionRepository(datadir / "transactions.jsonl")
         service = TransactionService(repo)
         result = service.summary(args.month)
 
@@ -285,7 +298,7 @@ def main():
             for i, (category, amount) in enumerate(top_items, start=1):
                 print(f"{i}) {category} {amount}원")
 
-            budget_repo = BudgetRepository(Path("data/budgets.jsonl"))
+            budget_repo = BudgetRepository(datadir / "budgets.jsonl")
             budget_amount = budget_repo.get(args.month)
 
             if budget_amount is not None:
@@ -295,7 +308,7 @@ def main():
                     print("[경고] 예산을 초과했습니다!")
 
     elif args.command == "budget":
-        budget_repo = BudgetRepository(Path("data/budgets.jsonl"))
+        budget_repo = BudgetRepository(datadir / "budgets.jsonl")
         if args.budget_command == "set":
             budget_repo.set(args.month, args.amount)
             print(f"[저장 완료] {args.month} 예산 {args.amount}원")
@@ -303,17 +316,28 @@ def main():
             parser.print_help()
 
     elif args.command == "export":
-        repo = TransactionRepository(Path("data/transactions.jsonl"))
+        if args.month:
+            year, month = map(int, args.month.split("-"))
+            last_day = calendar.monthrange(year, month)[1]
+            date_from = f"{args.month}-01"
+            date_to = f"{args.month}-{last_day:02d}"
+        elif args.date_from and args.date_to:
+            date_from = args.date_from
+            date_to = args.date_to
+        else:
+            print("[오류] export는 --month 또는 --from/--to 중 하나 이상을 지정해야 합니다.")
+            sys.exit(1)
+
+        repo = TransactionRepository(datadir / "transactions.jsonl")
         service = TransactionService(repo)
-        count = service.export_csv(args.out)
-        print(f"[내보내기 완료] {count}건을 {args.out}에 저장했습니다.")
+        count = service.export_csv(args.out, date_from=date_from, date_to=date_to)
+        print(f"[완료] {args.out} ({count} records)")
 
     elif args.command == "import":
-        repo = TransactionRepository(Path("data/transactions.jsonl"))
+        repo = TransactionRepository(datadir / "transactions.jsonl")
         service = TransactionService(repo)
         result = service.import_csv(args.csv_in, cat_repo)
         print(f"[가져오기 완료] 성공 {result['success']}건, 실패 {result['failed']}건")
 
     else:
         parser.print_help()
-
