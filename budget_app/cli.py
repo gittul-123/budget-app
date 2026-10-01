@@ -3,11 +3,11 @@ import sys
 from pathlib import Path
 from .models import Transaction
 from .repository import TransactionRepository, CategoryRepository, BudgetRepository
-from itertools import islice
 from datetime import datetime
 from .service import TransactionService
 import functools
 import calendar
+from collections import deque
 
 
 DEFAULT_CATEGORIES = ["food", "transport", "rent", "salary", "etc"]
@@ -173,9 +173,10 @@ def main():
 
     elif args.command == "list":
         repo = TransactionRepository(datadir / "transactions.jsonl")
-        transactions = list(repo.iter_all())
-        transactions.reverse()
-        for transaction in islice(transactions, args.limit):
+        recent = deque(maxlen=args.limit)
+        for transaction in repo.iter_all():
+            recent.append(transaction)
+        for transaction in reversed(recent):
             print(transaction)
 
     elif args.command == "category":
