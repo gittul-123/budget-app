@@ -119,7 +119,7 @@ def prompt_memo() -> str:
     return input("메모(선택): ")
 
 
-def prompt_tags() -> list[str]:
+def prompt_tags():
     text = input("태그(쉼표로 구분, 없으면 엔터): ")
     if text.strip() == "":
         return []
@@ -230,7 +230,7 @@ def main():
             q=args.q,
             tag=args.tag,
         ))
-        results.reverse()
+        results.sort(key=lambda t: (t.date, t.id), reverse=True)
         for transaction in results:
             print(transaction)
 
@@ -339,7 +339,7 @@ def main():
         repo = TransactionRepository(datadir / "transactions.jsonl")
         service = TransactionService(repo)
         result = service.import_csv(args.csv_in, cat_repo)
-        print(f"[가져오기 완료] 성공 {result['success']}건, 실패 {result['failed']}건")
+        print(f"[가져오기 완료] 성공 {result['success']}건, 실패 {result['failed']}건, 중복 {result['duplicate']}건")
 
     else:
         parser.print_help()

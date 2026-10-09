@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Optional
 from .models import Transaction
 from dataclasses import asdict, replace
 
@@ -98,10 +98,10 @@ class CategoryRepository:
         with open(self.file_path, "w", encoding="utf-8") as f:
             for n in remaining:
                 f.write(json.dumps({"name": n}, ensure_ascii=False) + "\n")
-        
+
         return found
-    
-    def ensure_default(self, defaults: list[str]) -> None:
+
+    def ensure_default(self, defaults: list) -> None:
         has_any = any(True for _ in self.iter_all())
         if has_any:
             return
@@ -122,7 +122,7 @@ class BudgetRepository:
                 data = json.loads(line)
                 yield data
 
-    def get(self, month: str) -> int | None:
+    def get(self, month: str) -> Optional[int]:
         for entry in self.iter_all():
             if entry["month"] == month:
                 return entry["amount"]

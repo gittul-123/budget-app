@@ -79,6 +79,11 @@ class TransactionService:
     def import_csv(self, path, cat_repo) -> dict:
         success = 0
         failed = 0
+        duplicate = 0
+
+        existing = set()
+        for t in self.repo.iter_all():
+            existing.add((t.date, t.type, t.category, t.amount, t.memo, tuple(t.tags)))
 
         with open(path, "r", encoding="utf-8", newline="") as f:
             reader = csv.DictReader(f)
@@ -99,14 +104,21 @@ class TransactionService:
                     if amount <= 0:
                         raise ValueError("invalid amount")
 
+                    memo = row.get("memo", "") or ""
                     tags_str = row.get("tags", "") or ""
                     tags = [t.strip() for t in tags_str.split(",")] if tags_str.strip() else []
 
+                    key = (date, type_, category, amount, memo, tuple(tags))
+                    if key in existing:
+                        duplicate += 1
+                        continue
+
                     new_id = self.repo.next_id()
-                    transaction = Transaction(id=new_id, date=date, type=type_, category=category, amount=amount, memo=row.get("memo", ""), tags=tags)
+                    transaction = Transaction(id=new_id, date=date, type=type_, category=category, amount=amount, memo=memo, tags=tags)
                     self.repo.add(transaction)
+                    existing.add(key)
                     success += 1
                 except (ValueError, KeyError):
                     failed += 1
 
-        return {"success": success, "failed": failed}
+        return {"success": success, "failed": failed, "duplicate": duplicate}
